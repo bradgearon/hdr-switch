@@ -6,7 +6,6 @@
 #include <thread>
 #include <vector>
 
-#include "nvapi.h"
 #include "service_base.h"
 class GpuSettingsService : public ServiceBase
 {

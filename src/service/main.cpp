@@ -6,16 +6,18 @@
 #include <future>
 #include <chrono>
 
-#include "service/gpu_settings_svc.h"
-#include "service/install.h"
-
-#include "ipc.h"
-#include "nvapi.h"
-#include "NvApiDriverSettings.h"
 #include <stdlib.h>
 #include <stdio.h>
 
-using spsc_msg_queue = ipc::chan<ipc::wr<ipc::relat::single, ipc::relat::single, ipc::trans::unicast>>;
+#include <nvapi.h>
+#include <NvApiDriverSettings.h>
+
+#include <ipc.h>
+
+#include "gpu_settings_svc.h"
+#include "install.h"
+
+std::unique_ptr<GpuSettingsService> svcPtr;
 
 void err(NvAPI_Status status)
 {
@@ -24,8 +26,6 @@ void err(NvAPI_Status status)
     printf(" NVAPI error: %s\n", szDesc);
     // exit(-1);
 }
-
-std::unique_ptr<GpuSettingsService> svcPtr;
 
 void runandwait()
 {
