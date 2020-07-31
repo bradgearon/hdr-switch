@@ -1,3 +1,4 @@
+#include <tuple>
 #include <memory>
 
 #include "toggle.h"
@@ -47,7 +48,7 @@ namespace core
         hdrData->mastering_display_data.max_frame_average_light_level = (NvU16)ceil(maxFALL + 0.5);
         hdrData->mastering_display_data.min_display_mastering_luminance = (NvU16)ceil(minMaster * 10000.0 + 0.5);
     }
-    NV_COLOR_DATA setNonHdr(HDR_MODE mode)
+    NV_COLOR_DATA ToggleImpl::setColorData(COLOR_MODE mode)
     {
         NV_COLOR_DATA color = {0};
 
@@ -60,15 +61,20 @@ namespace core
 
         switch (mode)
         {
-        case HDR_MODE::YUV420_12:
+        case COLOR_MODE::RGB_10:
+            format = NV_COLOR_FORMAT_RGB;
+            bpc = NV_BPC_10;
+            // color.data.depth = NV_DESKTOP_COLOR_DEPTH_16BPC_FLOAT_HDR;
+            break;
+        case COLOR_MODE::YUV420_12:
             format = NV_COLOR_FORMAT_YUV420;
             bpc = NV_BPC_12;
             break;
-        case HDR_MODE::YUV422_10:
+        case COLOR_MODE::YUV422_10:
             format = NV_COLOR_FORMAT_YUV422;
             bpc = NV_BPC_12;
             break;
-        case HDR_MODE::YUV444:
+        case COLOR_MODE::YUV444:
             format = NV_COLOR_FORMAT_YUV444;
             bpc = NV_BPC_8;
             break;
@@ -82,75 +88,70 @@ namespace core
         return color;
     }
 
-    void Toggle::set_hdr(HDR_MODE mode)
-    {
-        auto impl = (ToggleImpl *)this;
-
-        auto dispId = impl->getPrimaryDispId();
-        auto color = impl->setColorData(mode);
-
-        auto status = SdkStatusImpl(NvAPI_Disp_HdrColorControl(dispId, &color));
-        if (!status.IsSuccessful)
-        {
-            // std::cerr << status.Message;
-        }
-
-        auto nonHdrColor = setNonHdr(mode);
-        status = SdkStatusImpl(NvAPI_Disp_ColorControl(dispId, &nonHdrColor));
-        if (!status.IsSuccessful)
-        {
-            // std::cerr << status.Message;
-        }
-    }
-
-    NV_HDR_COLOR_DATA ToggleImpl::setColorData(HDR_MODE mode)
+    NV_HDR_COLOR_DATA ToggleImpl::setHdrData(bool enabled)
     {
         NV_HDR_COLOR_DATA color = {0};
 
         color.version = NV_HDR_COLOR_DATA_VER;
         color.cmd = NV_HDR_CMD_SET;
 
-        auto format = NV_COLOR_FORMAT_RGB;
-        auto bpc = NV_BPC_8;
-
-        switch (mode)
+        if (enabled)
         {
-        case HDR_MODE::YUV420_12:
-            format = NV_COLOR_FORMAT_YUV420;
-            bpc = NV_BPC_16;
-            break;
-        case HDR_MODE::YUV422_10:
-            format = NV_COLOR_FORMAT_YUV422;
-            bpc = NV_BPC_12;
-            break;
-        case HDR_MODE::YUV444:
-            format = NV_COLOR_FORMAT_YUV444;
-            bpc = NV_BPC_10;
-            break;
+            color.hdrColorFormat = NV_COLOR_FORMAT_RGB;
+            color.hdrBpc = NV_BPC_8;
         }
 
-        color.hdrColorFormat = format;
-        color.hdrBpc = bpc;
-
         color.hdrDynamicRange = NV_DYNAMIC_RANGE_AUTO;
-        color.hdrMode = (mode == NONE || mode != RGB) ? NV_HDR_MODE_OFF : NV_HDR_MODE_UHDA;
+        color.hdrMode = enabled ? NV_HDR_MODE_UHDA : NV_HDR_MODE_OFF;
 
         calcMasteringData(&color);
 
         return color;
     }
 
-    unsigned long ToggleImpl::getPrimaryDispId()
+    SdkStatus Toggle::setColorMode(COLOR_MODE mode)
+    {
+        auto impl = (ToggleImpl *)this;
+
+        auto [dispId, dispStatus] = impl->getPrimaryDispId();
+        if(!dispStatus.IsSuccessful)
+        {
+            return dispStatus;
+        }
+
+        auto color = impl->setColorData(mode);
+        auto status = SdkStatusImpl(NvAPI_Disp_ColorControl(dispId, &color));
+
+        return status;
+    }
+
+    SdkStatus Toggle::setHdrMode(bool enabled)
+    {
+        auto impl = (ToggleImpl *)this;
+
+        auto [dispId, dispStatus] = impl->getPrimaryDispId();
+        if(!dispStatus.IsSuccessful)
+        {
+            return dispStatus;
+        }
+
+        auto color = impl->setHdrData(enabled);
+        auto status = SdkStatusImpl(NvAPI_Disp_HdrColorControl(dispId, &color));
+
+        return status;
+    }
+
+    std::tuple<unsigned long, SdkStatus> ToggleImpl::getPrimaryDispId()
     {
         NvU32 dispIdCount = 0;
 
         auto gpuHandles = std::make_unique<NvPhysicalGpuHandle[]>(NVAPI_MAX_PHYSICAL_GPUS);
         NvU32 numOfGPUs = 0;
 
-        auto status = SdkStatusImpl(NvAPI_EnumPhysicalGPUs(gpuHandles.get(), &numOfGPUs));
+        SdkStatus status = SdkStatusImpl(NvAPI_EnumPhysicalGPUs(gpuHandles.get(), &numOfGPUs));
         if (!status.IsSuccessful)
         {
-            // std::cerr << status.Message;
+            return {-1, status};
         }
 
         NvU32 connected_displays = 0;
@@ -158,7 +159,7 @@ namespace core
         status = SdkStatusImpl(NvAPI_GPU_GetConnectedDisplayIds(gpuHandles[0], NULL, &dispIdCount, NULL));
         if (!status.IsSuccessful)
         {
-            // std::cerr << status.Message;
+            return {-1, status};
         }
 
         auto dispIds = std::make_unique<NV_GPU_DISPLAYIDS[]>(dispIdCount);
@@ -168,10 +169,10 @@ namespace core
         status = SdkStatusImpl(NvAPI_GPU_GetConnectedDisplayIds(gpuHandles[0], dispIds.get(), &dispIdCount, NULL));
         if (!status.IsSuccessful)
         {
-            // std::cerr << status.Message;
+            return {-1, status};
         }
 
-        return dispIds[0].displayId;
+        return { dispIds[0].displayId, status };
     }
 
 } // namespace core

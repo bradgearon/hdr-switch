@@ -1,4 +1,4 @@
-#include <string.h>
+#include <string>
 #include <memory>
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -22,20 +22,16 @@
 #define TRAY_ICON2 "icon.ico"
 #endif
 
-#include "hdr_mode.h"
+#include "color_mode.h"
 #include "toggle.h"
 
 using namespace core;
 
 static struct tray tray;
-
-static tray_menu *lastItem = NULL;
-static HDR_MODE currentMode = HDR_MODE::NONE;
 static std::unique_ptr<Toggle> hdrToggle;
 
 static void toggleItem(struct tray_menu *item)
 {
-
   item->checked = !item->checked;
   tray_update(&tray);
 }
@@ -45,36 +41,58 @@ static void quit(struct tray_menu *item)
   tray_exit();
 }
 
-static void setHdr(struct tray_menu *item, HDR_MODE mode)
+static void showError(const char* msg)
 {
-
-  if (lastItem != NULL)
-  {
-    toggleItem(lastItem);
-  }
-
-  if (item->checked)
-  {
-    mode = HDR_MODE::NONE;
-  }
-
-  hdrToggle->set_hdr(mode);
-  currentMode = mode;
-
-  toggleItem(item);
-  lastItem = item;
+  MessageBox(NULL, msg, "HDR Switch Error", MB_OK | MB_ICONWARNING);
 }
 
-static void setHdr444(struct tray_menu *item) { setHdr(item, HDR_MODE::YUV444); }
-static void setHdr422(struct tray_menu *item) { setHdr(item, HDR_MODE::YUV422_10); }
-static void setHdr420(struct tray_menu *item) { setHdr(item, HDR_MODE::YUV420_12); }
-static void setHdrRGB(struct tray_menu *item) { setHdr(item, HDR_MODE::RGB); }
+static void setHdrMode(struct tray_menu *item)
+{
+  auto enabled = !item->checked;
+
+  auto status = hdrToggle->setHdrMode(enabled);
+  if (!status.IsSuccessful)
+  {
+    auto msg = "Error setting hdr mode: " + status.Message;
+    showError(msg.c_str());
+  }
+
+  toggleItem(item);
+}
+
+static void setColorMode(struct tray_menu *item, COLOR_MODE mode)
+{
+  static auto lastColorItem{item};
+
+  if(item->checked) {
+    return;
+  }
+
+  if (item != lastColorItem)
+  {
+    toggleItem(lastColorItem);
+  }
+
+  auto status = hdrToggle->setColorMode(mode);
+  if (!status.IsSuccessful)
+  {
+    auto msg = "Error setting color mode: " + status.Message;
+    showError(msg.c_str());
+  }
+  
+  toggleItem(item);
+  lastColorItem = item;
+}
+
+auto setColorCb = [](auto item, COLOR_MODE mode) { setColorMode(item, mode); };
 
 static tray_menu hdrTrayMenu[] = {
-    {.text = "YUV444 8 bit", .cb = setHdr444, .submenu = NULL},
-    {.text = "YUV422 12 bit", .cb = setHdr422, .submenu = NULL},
-    {.text = "YUV420 12 bit", .cb = setHdr420, .submenu = NULL},
-    {.text = "RGB 8 bit", .cb = setHdrRGB, .submenu = NULL}
+    {.text = "HDR Mode", .cb = setHdrMode, .submenu = NULL},
+    {.text = "YUV444 8bit", .cb = [](auto item) { setColorMode(item, COLOR_MODE::YUV444); }, .submenu = NULL},
+    {.text = "YUV422 12bit", .cb = [](auto item) { setColorMode(item, COLOR_MODE::YUV422_10); }, .submenu = NULL},
+    {.text = "YUV420 12bit", .cb = [](auto item) { setColorMode(item, COLOR_MODE::YUV420_12); }, .submenu = NULL},
+    {.text = "RGB 8 bit", .cb = [](auto item) { setColorMode(item, COLOR_MODE::RGB); }, .submenu = NULL},
+    {.text = "RGB 10 bit", .cb = [](auto item) { setColorMode(item, COLOR_MODE::RGB_10); }, .submenu = NULL},
 };
 static struct tray hdrTray = {
     .icon = TRAY_ICON1,

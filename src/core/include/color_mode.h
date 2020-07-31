@@ -1,15 +1,16 @@
-#ifndef HDR_MODE_PUB_H
-#define HDR_MODE_PUB_H
+#ifndef COLOR_MODE_PUB_H
+#define COLOR_MODE_PUB_H
 
 namespace core
 {
-    enum HDR_MODE
+    enum COLOR_MODE
     {
         NONE,
         YUV444,
         YUV422_10,
         YUV420_12,
-        RGB
+        RGB,
+        RGB_10
     };
 }
 

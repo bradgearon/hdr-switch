@@ -1,7 +1,8 @@
 #ifndef TOGGLE_PUB_H
 #define TOGGLE_PUB_H
 
-#include "hdr_mode.h"
+#include "color_mode.h"
+#include "sdk_status.h"
 
 namespace core
 {
@@ -11,7 +12,8 @@ namespace core
         Toggle();
         ~Toggle();
 
-        void set_hdr(HDR_MODE mode = HDR_MODE::YUV444);
+        SdkStatus setHdrMode(bool enabled);
+        SdkStatus setColorMode(COLOR_MODE mode = COLOR_MODE::YUV444);
     };
 
 } // namespace core
