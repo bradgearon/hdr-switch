@@ -1,11 +1,15 @@
+![](https://i.imgur.com/gzZiVsr.gif)
+
 #### using
 
-+ launch this program (hdr will be enabled)
-+ leave it running (minimize it)
++ launch this program (hdr icon will appear in tray)
++ right click - select hdr mode
 + launch your game / movie
-+ close this program when finished
++ right click - select hdr mode again to disable
 
 #### building
 
-install nv api
-build with vs 2017+
+download nvapi
+point cmake to nv api in core lib (src/core/cmakelists.txt)
+build
+
