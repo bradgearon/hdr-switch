@@ -8,6 +8,7 @@ SET (CMAKE_RUNTIME_OUTPUT_DIRECTORY
 include_directories(
   ..
   ../core/include
+  ../service/include
 )
 
 file(GLOB SRC_FILES
@@ -26,4 +27,5 @@ add_executable(
 
 target_link_libraries(${PROJECT_NAME} 
   core
+  service
 )
