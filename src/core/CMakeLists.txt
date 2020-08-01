@@ -23,7 +23,15 @@ target_compile_definitions(nvapi
   INTERFACE _WIN32
 )
 
-set_property(TARGET nvapi PROPERTY IMPORTED_LOCATION ${NVAPI_PATH}/amd64/nvapi64.lib)
+
+if(${CMAKE_GENERATOR_PLATFORM} STREQUAL "win32")
+  set(nvlib x86/nvapi.lib)
+else()
+  set(nvlib amd64/nvapi64.lib)
+endif()
+
+
+set_property(TARGET nvapi PROPERTY IMPORTED_LOCATION ${NVAPI_PATH}/${nvlib})
 add_dependencies(nvapi ext_nvapi)
 
 include_directories(
@@ -38,8 +46,6 @@ add_library(
   ${PROJECT_NAME} 
   ${SRC_FILES}
 )
-
-
 
 target_link_libraries(${PROJECT_NAME} 
   nvapi

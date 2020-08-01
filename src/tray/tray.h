@@ -14,11 +14,12 @@ struct tray_menu {
   char *text;
   int disabled;
   int checked;
+  bool last;
 
   void (*cb)(struct tray_menu *);
   void *context;
 
-  struct tray_menu *submenu;
+  struct tray_menu *submenu = NULL;
 };
 
 static void tray_update(struct tray *tray);
@@ -286,6 +287,10 @@ static HMENU _tray_menu(struct tray_menu *m, UINT *id) {
       item.dwItemData = (ULONG_PTR)m;
 
       InsertMenuItem(hmenu, *id, TRUE, &item);
+    }
+
+    if(m->last) {
+      break;
     }
   }
   return hmenu;
