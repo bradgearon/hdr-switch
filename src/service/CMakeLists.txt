@@ -1,11 +1,8 @@
+set(CMAKE_CXX_STANDARD 20)
+
 include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
 
 project(service)
-
-set(qtroot "S:/Qt/Qt5.12.9/5.12.9/msvc2017_64")
-set(Qt5Core_DIR ${qtroot}/lib/cmake/Qt5Core)
-set(Qt5_DIR ${qtroot}/lib/cmake/Qt5)
-set(QT_QMAKE_EXECUTABLE ${qtroot}/bin/qmake.exe)
 
 ExternalProject_Add(project_ipc
   GIT_REPOSITORY https://github.com/mutouyun/cpp-ipc
@@ -25,9 +22,9 @@ add_dependencies(ipc project_ipc)
 message(warning ${ipc_path})
 
 include_directories(
-  ${NVAPI_PATH}
   ${ipc_path}/include
   ${ipc_path}/src
+  ../core/include
   ..
 )
 
@@ -37,7 +34,7 @@ file(GLOB SRC_FILES
   *.cpp
 )
 
-add_executable(
+add_library(
   ${PROJECT_NAME} 
   ${SRC_FILES}
 )
@@ -47,9 +44,12 @@ target_compile_definitions(${PROJECT_NAME}
 )
 
 target_link_libraries(${PROJECT_NAME} 
-  nvapi
   core
-  #ipc
 )
 
-set(LIBRARY_OUTPUT_PATH ../output)
+install(TARGETS service EXPORT libService)
+
+install(EXPORT libService NAMESPACE service::
+        DESTINATION ../lib/cmake/service)
+
+export(EXPORT libService NAMESPACE service::)

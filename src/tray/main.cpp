@@ -25,11 +25,13 @@
 
 #include "color_mode.h"
 #include "toggle.h"
+#include "service/host.h"
 
 using namespace core;
 
 static struct tray tray;
 static std::unique_ptr<Toggle> hdrToggle;
+static std::unique_ptr<std::thread> serviceThread;
 
 static void toggleItem(struct tray_menu *item)
 {
@@ -97,7 +99,7 @@ static tray_menu hdrTrayMenu[] = {
     {.text = "RGB 8 bit", .cb = [](auto item) { setColorMode(item, COLOR_MODE::RGB); }},
     {.text = "RGB 10 bit", .cb = [](auto item) { setColorMode(item, COLOR_MODE::RGB_10); }},
     {.text = "-"},
-    {.text = "Exit", .last = true, .cb = quit },
+    {.text = "Exit", .last = true, .cb = quit},
 };
 
 static struct tray hdrTray = {
@@ -105,17 +107,37 @@ static struct tray hdrTray = {
     .menu = hdrTrayMenu,
 };
 
-int main()
-{
-  hdrToggle = std::make_unique<Toggle>();
+service::Host host(
+    []() {
+      setHdrMode(&hdrTrayMenu[0]);
+    });
 
-  tray = hdrTray;
-  if (tray_init(&tray) < 0)
+int main(int argc, char *argv[])
+{
+  if (argc == 1)
   {
-    return 1;
+    serviceThread = std::make_unique<std::thread>(host.start());
+
+    hdrToggle = std::make_unique<Toggle>();
+
+    tray = hdrTray;
+    if (tray_init(&tray) < 0)
+    {
+      return 1;
+    }
+    while (tray_loop(1) == 0)
+    {
+    }
   }
-  while (tray_loop(1) == 0)
+
+  std::vector<std::string> args(argv, argv + argc);
+
+  auto isToggle = args[1].find("hdr");
+  if (isToggle != std::string::npos)
   {
+    host.sendToggle();
+    return 0;
   }
+
   return 0;
 }
