@@ -9,6 +9,8 @@ include_directories(
   ..
   ../core/include
   ../service/include
+  ${winlamb_path}
+  ../settings
 )
 
 file(GLOB SRC_FILES
@@ -28,4 +30,5 @@ add_executable(
 target_link_libraries(${PROJECT_NAME} 
   core
   service
+  settings
 )

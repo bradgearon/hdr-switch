@@ -5,4 +5,5 @@ project(hdr-switch)
 
 add_subdirectory(src/core)
 add_subdirectory(src/service)
+add_subdirectory(src/settings)
 add_subdirectory(src/tray)

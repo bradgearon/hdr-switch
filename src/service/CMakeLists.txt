@@ -39,9 +39,11 @@ add_library(
   ${SRC_FILES}
 )
 
+
 target_compile_definitions(${PROJECT_NAME}
   PRIVATE __IPC_LIBRARY__
 )
+
 
 target_link_libraries(${PROJECT_NAME} 
   core

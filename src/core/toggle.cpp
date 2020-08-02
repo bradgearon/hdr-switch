@@ -1,6 +1,7 @@
 #include <tuple>
 #include <memory>
 
+#include "include/hdr_data.h"
 #include "toggle.h"
 #include "sdk_status.h"
 
@@ -20,34 +21,22 @@ namespace core
         NvAPI_Unload();
     }
 
-    void calcMasteringData(NV_HDR_COLOR_DATA *hdrData)
+    void calcMasteringData(NV_HDR_COLOR_DATA hdrData, HdrData data, DisplayChromacities chroma)
     {
-        double rx = 0.64;
-        double ry = 0.33;
-        double gx = 0.30;
-        double gy = 0.60;
-        double bx = 0.15;
-        double by = 0.06;
-        double wx = 0.3127;
-        double wy = 0.3290;
-        double minMaster = 1.0;
-        double maxMaster = 1000;
-        double maxCLL = 1000;
-        double maxFALL = 100;
-
-        hdrData->mastering_display_data.displayPrimary_x0 = (NvU16)ceil(rx * 0xC350 + 0.5);
-        hdrData->mastering_display_data.displayPrimary_y0 = (NvU16)ceil(ry * 0xC350 + 0.5);
-        hdrData->mastering_display_data.displayPrimary_x1 = (NvU16)ceil(gx * 0xC350 + 0.5);
-        hdrData->mastering_display_data.displayPrimary_y1 = (NvU16)ceil(gy * 0xC350 + 0.5);
-        hdrData->mastering_display_data.displayPrimary_x2 = (NvU16)ceil(bx * 0xC350 + 0.5);
-        hdrData->mastering_display_data.displayPrimary_y2 = (NvU16)ceil(by * 0xC350 + 0.5);
-        hdrData->mastering_display_data.displayWhitePoint_x = (NvU16)ceil(wx * 0xC350 + 0.5);
-        hdrData->mastering_display_data.displayWhitePoint_y = (NvU16)ceil(wy * 0xC350 + 0.5);
-        hdrData->mastering_display_data.max_content_light_level = (NvU16)ceil(maxCLL + 0.5);
-        hdrData->mastering_display_data.max_display_mastering_luminance = (NvU16)ceil(maxMaster + 0.5);
-        hdrData->mastering_display_data.max_frame_average_light_level = (NvU16)ceil(maxFALL + 0.5);
-        hdrData->mastering_display_data.min_display_mastering_luminance = (NvU16)ceil(minMaster * 10000.0 + 0.5);
+        hdrData.mastering_display_data.displayPrimary_x0 = NvU16(chroma.RedX * 50000.0f);
+        hdrData.mastering_display_data.displayPrimary_y0 = NvU16(chroma.RedY * 50000.0f);
+        hdrData.mastering_display_data.displayPrimary_x1 = NvU16(chroma.GreenX * 50000.0f);
+        hdrData.mastering_display_data.displayPrimary_y1 = NvU16(chroma.GreenY * 50000.0f);
+        hdrData.mastering_display_data.displayPrimary_x2 = NvU16(chroma.BlueX * 50000.0f);
+        hdrData.mastering_display_data.displayPrimary_y2 = NvU16(chroma.BlueY * 50000.0f);
+        hdrData.mastering_display_data.displayWhitePoint_x = NvU16(chroma.WpX * 50000.0f);
+        hdrData.mastering_display_data.displayWhitePoint_y = NvU16(chroma.WpY * 50000.0f);
+        hdrData.mastering_display_data.max_display_mastering_luminance = NvU16(data.MaxOutputNits);
+        hdrData.mastering_display_data.min_display_mastering_luminance = NvU16(data.MinOutputNits);
+        hdrData.mastering_display_data.max_content_light_level = NvU16(data.MaxCLL);
+        hdrData.mastering_display_data.max_frame_average_light_level = NvU16(data.MaxFALL);
     }
+
     NV_COLOR_DATA ToggleImpl::setColorData(COLOR_MODE mode)
     {
         NV_COLOR_DATA color = {0};
@@ -104,9 +93,30 @@ namespace core
         color.hdrDynamicRange = NV_DYNAMIC_RANGE_AUTO;
         color.hdrMode = enabled ? NV_HDR_MODE_UHDA : NV_HDR_MODE_OFF;
 
-        calcMasteringData(&color);
-
         return color;
+    }
+
+    SdkStatus Toggle::setHdrData(HdrData data)
+    {
+        NV_HDR_COLOR_DATA color = {0};
+
+        color.version = NV_HDR_COLOR_DATA_VER;
+        color.cmd = NV_HDR_CMD_SET;
+
+        auto chroma = DisplayChromacityList[2];
+
+        calcMasteringData(color, data, chroma);
+
+        auto impl = (ToggleImpl *)this;
+
+        auto [dispId, dispStatus] = impl->getPrimaryDispId();
+        if (!dispStatus.IsSuccessful)
+        {
+            return dispStatus;
+        }
+
+        auto status = SdkStatusImpl(NvAPI_Disp_HdrColorControl(dispId, &color));
+        return status;
     }
 
     SdkStatus Toggle::setColorMode(COLOR_MODE mode)
@@ -114,7 +124,7 @@ namespace core
         auto impl = (ToggleImpl *)this;
 
         auto [dispId, dispStatus] = impl->getPrimaryDispId();
-        if(!dispStatus.IsSuccessful)
+        if (!dispStatus.IsSuccessful)
         {
             return dispStatus;
         }
@@ -130,7 +140,7 @@ namespace core
         auto impl = (ToggleImpl *)this;
 
         auto [dispId, dispStatus] = impl->getPrimaryDispId();
-        if(!dispStatus.IsSuccessful)
+        if (!dispStatus.IsSuccessful)
         {
             return dispStatus;
         }
@@ -172,7 +182,7 @@ namespace core
             return {-1, status};
         }
 
-        return { dispIds[0].displayId, status };
+        return {dispIds[0].displayId, status};
     }
 
 } // namespace core

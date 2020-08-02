@@ -26,6 +26,7 @@
 #include "color_mode.h"
 #include "toggle.h"
 #include "service/host.h"
+#include "settings/main.h"
 
 using namespace core;
 
@@ -47,6 +48,16 @@ static void quit(struct tray_menu *item)
 static void showError(const char *msg)
 {
   MessageBox(NULL, msg, "HDR Switch Error", MB_OK | MB_ICONWARNING);
+}
+
+static void setHdrData(HdrData data) {
+  hdrToggle->setHdrData(data);
+}
+
+static void openSettings(struct tray_menu *item)
+{
+  Main settingsWindow = Main(setHdrData);
+  settingsWindow.start(wc.hInstance);
 }
 
 static void setHdrMode(struct tray_menu *item)
@@ -92,6 +103,7 @@ auto setColorCb = [](auto item, COLOR_MODE mode) { setColorMode(item, mode); };
 
 static tray_menu hdrTrayMenu[] = {
     {.text = "HDR Mode", .cb = setHdrMode},
+    {.text = "Settings", .cb = openSettings},
     {.text = "-"},
     {.text = "YUV444 8bit", .cb = [](auto item) { setColorMode(item, COLOR_MODE::YUV444); }},
     {.text = "YUV422 12bit", .cb = [](auto item) { setColorMode(item, COLOR_MODE::YUV422_10); }},
@@ -107,10 +119,9 @@ static struct tray hdrTray = {
     .menu = hdrTrayMenu,
 };
 
-service::Host host(
-    []() {
-      setHdrMode(&hdrTrayMenu[0]);
-    });
+service::Host host([]() {
+  setHdrMode(&hdrTrayMenu[0]);
+});
 
 int main(int argc, char *argv[])
 {
